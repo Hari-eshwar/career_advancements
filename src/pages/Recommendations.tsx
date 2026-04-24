@@ -45,16 +45,18 @@ export default function Recommendations() {
           setResumeData(rData);
 
           // Run Gap Agent
-          const gapList = await gapAgent(rData.technicalSkills, [targetRole]);
+          const gapList = await gapAgent(rData.technicalSkills.slice(0, 50), [targetRole]);
           setGaps(gapList);
 
           // Run Course Agent for top gaps
           const topGaps = gapList.filter((g: any) => g.priority === 'High').map((g: any) => g.skill);
-          const courseList = await courseAgent(topGaps.length > 0 ? topGaps : [targetRole]);
+          const courseList = await courseAgent(topGaps.length > 0 ? topGaps.slice(0, 5) : [targetRole]);
           setCourses(courseList);
         }
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        console.error("Recommendations Error:", err);
+        // We don't set a global error here to avoid blocking the whole page, 
+        // but it will stop loading and show empty state if it fails.
       } finally {
         setLoading(false);
       }

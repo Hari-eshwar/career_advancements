@@ -152,7 +152,8 @@ export default function ResumeAnalysis() {
         createdAt: new Date().toISOString()
       });
     } catch (err: any) {
-      setError('Analysis failed. Please try again.');
+      console.error("Analysis Error:", err);
+      setError(err.message || 'Analysis failed. Please check your connection and try again.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -167,7 +168,8 @@ export default function ResumeAnalysis() {
       const data = await targetedRoleAgent(resumeText.substring(0, 8000), targetRole);
       setTargetResult(data);
     } catch (err: any) {
-      setError('Targeted analysis failed. Please try again.');
+      console.error("Target Analysis Error:", err);
+      setError(err.message || 'Targeted analysis failed. Please try again.');
     } finally {
       setIsTargetAnalyzing(false);
     }

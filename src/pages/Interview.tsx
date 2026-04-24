@@ -120,9 +120,8 @@ export default function Interview() {
       await startCamera();
     } catch (err: any) {
       console.error("Interview start error:", err);
-      console.error("Full error details:", err.message);
-      const errorMsg = err.message || 'Unknown error';
-      setError(`Agent failed: ${errorMsg}. Please check your connection and try again.`);
+      const msg = err.message || 'Agent failed to initialize. Please check your connection and try again.';
+      setError(msg.includes('quota') ? "AI quota exceeded. Please wait a bit." : msg);
     } finally {
       setIsLoading(false);
     }
@@ -154,16 +153,33 @@ export default function Interview() {
   };
 
   const handleNextQuestion = async () => {
-    const evaluation = await evaluateAnswer(questions[currentIdx].question, currentAnswer);
-    const newAnswers = [...answers, { ...questions[currentIdx], answer: currentAnswer, ...evaluation }];
-    setAnswers(newAnswers);
-    setCurrentAnswer('');
-    setTimeRemaining(120);
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      const evaluation = await evaluateAnswer(questions[currentIdx].question, currentAnswer);
+      const newAnswers = [...answers, { ...questions[currentIdx], answer: currentAnswer, ...evaluation }];
+      setAnswers(newAnswers);
+      setCurrentAnswer('');
+      setTimeRemaining(120);
 
-    if (currentIdx < questions.length - 1) {
-      setCurrentIdx(currentIdx + 1);
-    } else {
-      finishInterview(newAnswers);
+      if (currentIdx < questions.length - 1) {
+        setCurrentIdx(currentIdx + 1);
+      } else {
+        await finishInterview(newAnswers);
+      }
+    } catch (err: any) {
+      console.error("Evaluation error:", err);
+      const fallbackEval = { score: 5, feedback: "Evaluation service temporarily unavailable." };
+      const newAnswers = [...answers, { ...questions[currentIdx], answer: currentAnswer, ...fallbackEval }];
+      setAnswers(newAnswers);
+      setCurrentAnswer('');
+      if (currentIdx < questions.length - 1) {
+        setCurrentIdx(currentIdx + 1);
+      } else {
+        await finishInterview(newAnswers);
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
