@@ -3,10 +3,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 // Safely initialize AI with error handling
 const getAIClient = () => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  console.log('Loading API Key:', apiKey ? '✓ Key found' : '✗ Key missing');
+  console.log('API Key length:', apiKey?.length || 0);
   if (!apiKey) {
     console.error('VITE_GEMINI_API_KEY not found in environment. Make sure it is set in .env file.');
+    throw new Error('API key is missing. Please provide a valid API key via VITE_GEMINI_API_KEY in .env');
   }
-  return new GoogleGenAI({ apiKey: apiKey || "" });
+  return new GoogleGenAI({ apiKey });
 };
 
 let ai: any = null;
