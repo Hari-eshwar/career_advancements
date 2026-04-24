@@ -120,7 +120,9 @@ export default function Interview() {
       await startCamera();
     } catch (err: any) {
       console.error("Interview start error:", err);
-      setError('Agent failed to initialize. Please check your connection and try again.');
+      console.error("Full error details:", err.message);
+      const errorMsg = err.message || 'Unknown error';
+      setError(`Agent failed: ${errorMsg}. Please check your connection and try again.`);
     } finally {
       setIsLoading(false);
     }

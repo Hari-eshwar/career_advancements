@@ -2,9 +2,9 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 // Safely initialize AI with error handling
 const getAIClient = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    console.warn('GEMINI_API_KEY not found in environment');
+    console.error('VITE_GEMINI_API_KEY not found in environment. Make sure it is set in .env file.');
   }
   return new GoogleGenAI({ apiKey: apiKey || "" });
 };
@@ -114,6 +114,8 @@ export const courseAgent = async (missingSkills: string[]) => {
 export const interviewAgent = async (role: string, difficulty: string) => {
   try {
     const client = initializeAI();
+    console.log('Interview agent initializing for:', role, difficulty);
+    
     const result = await client.models.generateContent({
       model: "gemini-1.5-flash",
       contents: `You are an expert interviewer for technical and leadership positions. 
@@ -138,14 +140,17 @@ export const interviewAgent = async (role: string, difficulty: string) => {
         }
       }
     });
+    
+    console.log('Interview agent response received');
     const parsed = JSON.parse(result.text);
     if (!Array.isArray(parsed)) {
       throw new Error('Invalid response format from interview agent');
     }
     return parsed;
-  } catch (error) {
+  } catch (error: any) {
     console.error('interviewAgent error:', error);
-    throw error;
+    console.error('Error details:', error.message);
+    throw new Error(`Interview generation failed: ${error.message}`);
   }
 };
 
