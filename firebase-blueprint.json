@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email"]
+    },
+    "Resume": {
+      "title": "Resume",
+      "description": "Resume analysis and scoring data",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "score": { "type": "number" },
+        "skills": { "type": "array", "items": { "type": "string" } },
+        "experience": { "type": "object" },
+        "education": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "score"]
+    },
+    "Interview": {
+      "title": "Interview",
+      "description": "Mock interview session data",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "jobRole": { "type": "string" },
+        "overallScore": { "type": "number" },
+        "technicalScore": { "type": "number" },
+        "communicationScore": { "type": "number" },
+        "behaviorScore": { "type": "number" },
+        "tabSwitches": { "type": "integer" },
+        "violations": { "type": "array" },
+        "questions": { "type": "array" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "jobRole"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Skill development course recommendation",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "platform": { "type": "string" },
+        "certification": { "type": "boolean" },
+        "duration": { "type": "string" },
+        "difficulty": { "type": "string" },
+        "cost": { "type": "string" },
+        "link": { "type": "string", "format": "uri" },
+        "skillsCovered": { "type": "array" }
+      },
+      "required": ["name", "platform", "link"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/resumes/{resumeId}": {
+      "schema": "Resume",
+      "description": "Resume analysis results"
+    },
+    "/interviews/{interviewId}": {
+      "schema": "Interview",
+      "description": "Interview session records"
+    },
+    "/courses/{courseId}": {
+      "schema": "Course",
+      "description": "Available certified courses"
+    }
+  }
+}

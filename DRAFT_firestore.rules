@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      // For this app, admin is a specific hardcoded logic or we could use the 'admins' collection
+      // But based on the prompt, there's a specific admin login. 
+      // For firestore security, we'll check if the uid belongs to the admin role
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // User Profile Validation
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'name']) &&
+             data.uid == request.auth.uid &&
+             data.email is string &&
+             data.name is string &&
+             data.name.size() <= 100;
+    }
+
+    // Resume Validation
+    function isValidResume(data) {
+      return data.keys().hasAll(['userId', 'score', 'technicalSkills']) &&
+             data.userId == request.auth.uid &&
+             data.score is number &&
+             data.score >= 0 && data.score <= 100 &&
+             data.technicalSkills is list;
+    }
+
+    // Interview Validation
+    function isValidInterview(data) {
+      return data.keys().hasAll(['userId', 'jobRole']) &&
+             data.userId == request.auth.uid &&
+             data.jobRole is string &&
+             data.overallScore is number;
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone']);
+    }
+
+    // 2. Resumes Collection
+    match /resumes/{resumeId} {
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidResume(request.resource.data);
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    // 3. Interviews Collection
+    match /interviews/{interviewId} {
+      allow get: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidInterview(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // 4. Courses Collection (Publicly readable, Admin writable)
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    // 5. Admin collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn() && request.auth.uid == adminId;
+      allow write: if false; // Only manageable via Firebase Console or special script
+    }
+  }
+}
