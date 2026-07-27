@@ -4,8 +4,19 @@ import { useAuth } from '../App';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { 
-  History
+  FileText, 
+  MessageSquare, 
+  Award, 
+  ArrowUpRight, 
+  Clock, 
+  ChevronRight,
+  TrendingUp,
+  Brain,
+  Video,
+  History,
+  Activity
 } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
 import { 
   LineChart, 
@@ -220,4 +231,27 @@ function StatCard({ label, value, max, subtext, progress }: { label: string; val
   );
 }
 
-
+function ReportItem({ title, date, score }: { title: string; date: string; score: number }) {
+  return (
+    <div className="flex items-center justify-between p-3 rounded-2xl hover:bg-neutral-50 transition-all cursor-pointer border border-transparent hover:border-neutral-100 group">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-neutral-100 rounded-xl flex items-center justify-center text-neutral-500">
+          <Award size={20} />
+        </div>
+        <div>
+          <h4 className="text-sm font-bold text-neutral-800 line-clamp-1">{title}</h4>
+          <p className="text-xs text-neutral-400 font-medium">{date}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className={cn(
+          "text-sm font-bold",
+          score >= 80 ? "text-green-600" : score >= 60 ? "text-blue-600" : "text-orange-600"
+        )}>
+          {score}%
+        </span>
+        <ArrowUpRight size={16} className="text-neutral-300 group-hover:text-blue-600 transition-colors" />
+      </div>
+    </div>
+  );
+}

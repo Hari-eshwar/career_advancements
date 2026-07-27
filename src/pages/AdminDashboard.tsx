@@ -8,12 +8,16 @@ import {
   Activity, 
   Search, 
   Download, 
+  AlertTriangle,
   ShieldCheck,
   TrendingUp,
+  History,
   X,
   Mail,
   Calendar,
-  Award
+  ExternalLink,
+  Award,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';

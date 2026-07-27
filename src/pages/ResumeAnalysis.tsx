@@ -38,77 +38,22 @@ export default function ResumeAnalysis() {
     if (!analysisRef.current) return;
     setIsDownloading(true);
     try {
-      // Capture the analysis as a high-quality PNG image
       const dataUrl = await toPng(analysisRef.current, {
         quality: 1,
-        pixelRatio: 3,
-        backgroundColor: '#ffffff',
-        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff'
       });
-
+      
       const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      // Load the captured image
-      const img = new Image();
-      const imgLoadPromise = new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('Failed to decode captured image'));
-      });
-      img.src = dataUrl;
-      await imgLoadPromise;
-
-      // Calculate image dimensions in PDF units
-      const imgWidthInMm = pdfWidth;
-      const imgHeightInMm = (img.naturalHeight * pdfWidth) / img.naturalWidth;
-
-      // If the image fits on one page, add it directly
-      if (imgHeightInMm <= pdfHeight) {
-        pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidthInMm, imgHeightInMm);
-      } else {
-        // Multi-page: split the image across pages
-        const pageHeightPx = (pdfHeight * img.naturalWidth) / pdfWidth;
-        let srcY = 0;
-        let pageNum = 0;
-
-        while (srcY < img.naturalHeight) {
-          if (pageNum > 0) pdf.addPage();
-
-          const remainingSrcPx = img.naturalHeight - srcY;
-          const currentPageHeightPx = Math.min(pageHeightPx, remainingSrcPx);
-          const currentPageHeightMm = (currentPageHeightPx * pdfWidth) / img.naturalWidth;
-
-          // Extract portion of the image for this page using a canvas
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = Math.min(currentPageHeightPx, 8192); // Limit canvas height for memory safety
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, srcY, img.naturalWidth, currentPageHeightPx, 0, 0, img.naturalWidth, currentPageHeightPx);
-              const pageDataUrl = canvas.toDataURL('image/png');
-              pdf.addImage(pageDataUrl, 'PNG', 0, 0, imgWidthInMm, currentPageHeightMm);
-            } else {
-              // Fallback: add full image scaled to page width
-              pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidthInMm, imgHeightInMm);
-              break;
-            }
-          } catch (canvasErr) {
-            console.error('Canvas page extraction failed, falling back to single page:', canvasErr);
-            pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidthInMm, Math.min(imgHeightInMm, pdfHeight));
-            break;
-          }
-
-          srcY += currentPageHeightPx;
-          pageNum++;
-        }
-      }
-
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Resume_Analysis_${user?.displayName?.replace(/\s+/g, '_') || 'Report'}.pdf`);
     } catch (err) {
       console.error('PDF generation error:', err);
-      alert('Failed to generate PDF. The report is displayed on screen. You can use Ctrl+P and "Save as PDF" as an alternative.');
+      alert('Failed to generate PDF report.');
     } finally {
       setIsDownloading(false);
     }

@@ -37,114 +37,11 @@ export default function Interview() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [startedAt, setStartedAt] = useState<string>('');
 
   const reportRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const recognitionRef = useRef<any>(null);
-  const [isListening, setIsListening] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const answerInputRef = useRef<HTMLTextAreaElement>(null);
-
-  // Speech Recognition using Web Speech API
-  const startSpeechRecognition = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
-      return;
-    }
-
-    if (isListening) {
-      stopSpeechRecognition();
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = (event: any) => {
-        setIsTranscribing(true);
-        let finalTranscript = '';
-        let interimTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-
-        if (finalTranscript) {
-          setCurrentAnswer(prev => {
-            const separator = prev.trim() ? ' ' : '';
-            return prev + separator + finalTranscript;
-          });
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-        setIsTranscribing(false);
-        if (event.error === 'not-allowed') {
-          alert('Microphone access denied. Please allow microphone permissions and try again.');
-        }
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-        setIsTranscribing(false);
-      };
-
-      recognition.start();
-      recognitionRef.current = recognition;
-      setIsListening(true);
-    } catch (err) {
-      console.error('Failed to start speech recognition:', err);
-      setIsListening(false);
-      setIsTranscribing(false);
-    }
-  };
-
-  const stopSpeechRecognition = () => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        // Ignore errors on stop
-      }
-      recognitionRef.current = null;
-    }
-    setIsListening(false);
-    setIsTranscribing(false);
-  };
-
-  // Auto-focus textarea when a new question loads
-  useEffect(() => {
-    if (stage === 'interview' && answerInputRef.current) {
-      answerInputRef.current.focus();
-    }
-  }, [currentIdx, stage]);
-
-  // Cleanup camera and speech recognition on unmount
-  useEffect(() => {
-    return () => {
-      stopCamera();
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {}
-      }
-    };
-  }, []);
 
   const resetInterview = () => {
-    stopSpeechRecognition();
     setStage('prep');
     setQuestions([]);
     setCurrentIdx(0);
@@ -166,83 +63,28 @@ export default function Interview() {
     if (!reportRef.current) return;
     setIsDownloading(true);
     try {
-      // Capture the report as a high-quality PNG image
       const dataUrl = await toPng(reportRef.current, {
         quality: 1,
-        pixelRatio: 3,
-        backgroundColor: '#ffffff',
-        cacheBust: true,
-        // Remove skipFonts to ensure text is rendered properly
+        pixelRatio: 2,
+        backgroundColor: '#ffffff'
       });
-
+      
       const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-
-      // Load the captured image
-      const img = new Image();
-      const imgLoadPromise = new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('Failed to decode captured image'));
-      });
-      img.src = dataUrl;
-      await imgLoadPromise;
-
-      // Calculate image dimensions in PDF units
-      const imgWidthInMm = pdfWidth;
-      const imgHeightInMm = (img.naturalHeight * pdfWidth) / img.naturalWidth;
-
-      // If the image fits on one page, add it directly
-      if (imgHeightInMm <= pdfHeight) {
-        pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidthInMm, imgHeightInMm);
-      } else {
-        // Multi-page: split the image across pages
-        const pageHeightPx = (pdfHeight * img.naturalWidth) / pdfWidth;
-        let srcY = 0;
-        let pageNum = 0;
-
-        while (srcY < img.naturalHeight) {
-          if (pageNum > 0) pdf.addPage();
-
-          // Calculate how much of the source image fits on this page
-          const remainingSrcPx = img.naturalHeight - srcY;
-          const currentPageHeightPx = Math.min(pageHeightPx, remainingSrcPx);
-          const currentPageHeightMm = (currentPageHeightPx * pdfWidth) / img.naturalWidth;
-
-          // Extract portion of the image for this page using a canvas
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = Math.min(currentPageHeightPx, 8192); // Limit canvas height for memory safety
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, srcY, img.naturalWidth, currentPageHeightPx, 0, 0, img.naturalWidth, currentPageHeightPx);
-              const pageDataUrl = canvas.toDataURL('image/png');
-              pdf.addImage(pageDataUrl, 'PNG', 0, 0, imgWidthInMm, currentPageHeightMm);
-            } else {
-              // Fallback: add full image scaled to page width
-              pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidthInMm, imgHeightInMm);
-              break;
-            }
-          } catch (canvasErr) {
-            console.error('Canvas page extraction failed, falling back to single page:', canvasErr);
-            pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidthInMm, Math.min(imgHeightInMm, pdfHeight));
-            break;
-          }
-
-          srcY += currentPageHeightPx;
-          pageNum++;
-        }
-      }
-
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Interview_Report_${jobRole.replace(/\s+/g, '_')}.pdf`);
     } catch (err) {
       console.error('PDF generation error:', err);
-      alert('Failed to generate PDF. The report content will be displayed on screen. You can also use your browser\'s Print (Ctrl+P) and "Save as PDF" option.');
+      alert('Failed to generate PDF. Please try again.');
     } finally {
       setIsDownloading(false);
     }
   };
+
+  const mediaRecorderRef = useRef<any>(null);
 
   // Tab Monitoring
   useEffect(() => {
@@ -275,7 +117,6 @@ export default function Interview() {
       if (!qs || qs.length === 0) throw new Error('No questions generated');
       setQuestions(qs);
       setStage('interview');
-      setStartedAt(new Date().toISOString());
       await startCamera();
     } catch (err: any) {
       console.error("Interview start error:", err);
@@ -357,7 +198,7 @@ export default function Interview() {
       tabSwitches,
       violations,
       questions: allAnswers,
-      startedAt: startedAt || new Date().toISOString(),
+      startedAt: new Date().toISOString(),
       completedAt: new Date().toISOString()
     };
     
@@ -491,89 +332,27 @@ export default function Interview() {
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">AI Agent Question {currentIdx + 1}/{questions.length}:</span>
                   <span className="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1 rounded-full">{questions[currentIdx]?.category}</span>
                 </div>
-                <AnimatePresence mode="wait">
-                  <motion.h2 
-                    key={currentIdx}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                    className="text-2xl font-bold tracking-tight leading-snug text-blue-900"
-                  >
-                    {questions[currentIdx]?.question}
-                  </motion.h2>
-                </AnimatePresence>
+                <h2 className="text-2xl font-bold tracking-tight leading-snug text-blue-900">
+                  {questions[currentIdx]?.question}
+                </h2>
               </div>
               
               <div className="relative">
                 <textarea 
-                  ref={answerInputRef}
                   value={currentAnswer}
-                  onChange={(e) => {
-                    setCurrentAnswer(e.target.value);
-                    // Auto-grow the textarea
-                    e.target.style.height = 'auto';
-                    e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
-                  }}
-                  onKeyDown={(e) => {
-                    // Ctrl+Enter or Cmd+Enter to submit
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !isLoading && currentAnswer.trim()) {
-                      e.preventDefault();
-                      handleNextQuestion();
-                    }
-                    // Shift+Enter for newline without submitting
-                  }}
-                  placeholder={isListening ? 'Listening... Speak your answer' : 'Type your answer here... (Ctrl+Enter to submit)'}
-                  className="w-full min-h-[120px] max-h-[320px] p-6 bg-blue-50/30 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-lg resize-none overflow-y-auto placeholder:text-blue-400/60 text-blue-800 transition-[height] duration-100"
-                  disabled={isLoading}
-                  rows={3}
+                  onChange={(e) => setCurrentAnswer(e.target.value)}
+                  placeholder="Record your answer via microphone or type here..."
+                  className="w-full h-40 p-6 bg-blue-50/30 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-lg resize-none placeholder:text-blue-400/60 text-blue-800"
                 />
-                {isListening && (
-                  <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-50 text-red-600 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider animate-pulse border border-red-200">
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                    {isTranscribing ? 'Recording...' : 'Listening...'}
-                  </div>
-                )}
                 <div className="absolute bottom-4 right-4 flex gap-2">
-                  <button 
-                    onClick={startSpeechRecognition}
-                    disabled={isLoading}
-                    className={cn(
-                      "p-3 rounded-xl shadow-sm transition-all",
-                      isListening 
-                        ? "bg-red-500 text-white shadow-red-500/30 animate-pulse ring-2 ring-red-300" 
-                        : "bg-white hover:bg-neutral-50 text-blue-600",
-                      isLoading && "opacity-50 cursor-not-allowed"
-                    )}
-                    title={isListening ? 'Stop recording' : 'Record voice answer'}
-                  >
-                    {isTranscribing ? (
-                      <div className="w-6 h-6 flex items-center justify-center">
-                        <div className="w-3 h-3 bg-red-600 rounded-full animate-ping"></div>
-                      </div>
-                    ) : (
-                      <Mic size={24} />
-                    )}
+                  <button className="p-3 bg-white rounded-xl shadow-sm hover:bg-neutral-50 transition-colors text-blue-600">
+                    <Mic size={24} />
                   </button>
                   <button 
                     onClick={handleNextQuestion}
-                    disabled={isLoading || !currentAnswer.trim()}
-                    className={cn(
-                      "p-3 rounded-xl shadow-lg transition-all flex items-center justify-center",
-                      isLoading 
-                        ? "bg-blue-400 text-white cursor-wait" 
-                        : "bg-blue-600 text-white hover:bg-blue-700",
-                      (!currentAnswer.trim() && !isLoading) && "opacity-50 cursor-not-allowed"
-                    )}
-                    title={isLoading ? 'AI is evaluating your answer...' : 'Submit answer'}
+                    className="p-3 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-700 transition-colors"
                   >
-                    {isLoading ? (
-                      <div className="w-6 h-6 flex items-center justify-center">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      </div>
-                    ) : (
-                      <Send size={24} />
-                    )}
+                    <Send size={24} />
                   </button>
                 </div>
               </div>

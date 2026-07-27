@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Search, Brain, Video } from 'lucide-react';
+import { Search, Brain, Video, ShieldCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function Home() {
