@@ -1,0 +1,14 @@
+{
+  "name": "CareerAI Assistant",
+  "description": "Multi-AI Agent Career Assistant with resume analysis, interview monitoring, and skill gap identification.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "AI Resume Analysis",
+    "Smart Mock Interviews",
+    "Skill Gap Identification",
+    "Admin Monitoring Dashboard"
+  ]
+}
